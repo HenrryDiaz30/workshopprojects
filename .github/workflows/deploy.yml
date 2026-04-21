@@ -15,7 +15,7 @@ jobs:
 
     env:
       AWS_REGION: us-east-1
-      S3_BUCKET_NAME: workshops-frontend-henrry-2026
+      S3_BUCKET_NAME: workshops-frontend-henrry2026
       CLOUDFRONT_DISTRIBUTION_ID: E1XXJPKAZX96B3
 
     steps:
