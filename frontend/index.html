@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Workshops App</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f6f8;
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      background: #232f3e;
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+
+    main {
+      max-width: 1000px;
+      margin: 30px auto;
+      padding: 20px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    h2 {
+      margin-top: 0;
+    }
+
+    input, textarea, button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 8px;
+      margin-bottom: 15px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+      font-size: 14px;
+    }
+
+    button {
+      background: #0073bb;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #005f99;
+    }
+
+    .workshop {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+      background: #fafafa;
+    }
+
+    .message {
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 15px;
+      display: none;
+    }
+
+    .success {
+      background: #e7f7ed;
+      color: #1d6b3b;
+      border: 1px solid #b7e4c7;
+    }
+
+    .error {
+      background: #fdecea;
+      color: #8a1c1c;
+      border: 1px solid #f5c2c2;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Gestión de Talleres</h1>
+    <p>Aplicación serverless en AWS</p>
+  </header>
+
+  <main>
+    <div id="messageBox" class="message"></div>
+
+    <div class="card">
+      <h2>Crear Taller</h2>
+      <form id="workshopForm">
+        <input type="text" id="id" placeholder="ID del taller" required>
+        <input type="text" id="name" placeholder="Nombre del taller" required>
+        <textarea id="description" placeholder="Descripción"></textarea>
+        <input type="text" id="category" placeholder="Categoría">
+        <input type="text" id="location" placeholder="Ubicación">
+        <input type="datetime-local" id="startAt">
+        <input type="datetime-local" id="endAt">
+        <input type="number" id="capacity" placeholder="Capacidad">
+        <button type="submit">Crear Taller</button>
+      </form>
+    </div>
+
+    <div class="card">
+      <h2>Lista de Talleres</h2>
+      <button onclick="loadWorkshops()">Actualizar lista</button>
+      <div id="workshopsList"></div>
+    </div>
+  </main>
+
+  <script>
+    const API_BASE = "https://tfkmwghq48.execute-api.us-east-1.amazonaws.com/prod";
+
+    function showMessage(text, type) {
+      const box = document.getElementById("messageBox");
+      box.className = "message " + type;
+      box.style.display = "block";
+      box.textContent = text;
+    }
+
+    function clearMessage() {
+      const box = document.getElementById("messageBox");
+      box.style.display = "none";
+      box.textContent = "";
+    }
+
+    function toIsoDate(value) {
+      if (!value) return "";
+      return new Date(value).toISOString();
+    }
+
+    async function loadWorkshops() {
+      clearMessage();
+      const list = document.getElementById("workshopsList");
+      list.innerHTML = "<p>Cargando talleres...</p>";
+
+      try {
+        const response = await fetch(`${API_BASE}/workshops`);
+        const data = await response.json();
+
+        if (!Array.isArray(data) || data.length === 0) {
+          list.innerHTML = "<p>No hay talleres registrados.</p>";
+          return;
+        }
+
+        list.innerHTML = data
+  .filter(item => item.SK === "META")
+  .map(item => `
+    <div class="workshop">
+      <h3>${item.name || "Sin nombre"}</h3>
+      <p><strong>ID:</strong> ${item.PK || ""}</p>
+      <p><strong>Descripción:</strong> ${item.description || ""}</p>
+      <p><strong>Categoría:</strong> ${item.category || ""}</p>
+      <p><strong>Ubicación:</strong> ${item.location || ""}</p>
+      <p><strong>Inicio:</strong> ${item.startAt || ""}</p>
+      <p><strong>Fin:</strong> ${item.endAt || ""}</p>
+      <p><strong>Capacidad:</strong> ${item.capacity || 0}</p>
+      <p><strong>Estado:</strong> ${item.status || ""}</p>
+
+      <button onclick="registerToWorkshop('${(item.PK || '').replace('WORKSHOP#','')}')">
+        Registrarme
+      </button>
+    </div>
+  `).join("");
+      } catch (error) {
+        list.innerHTML = "<p>Error cargando talleres.</p>";
+        showMessage("No se pudo cargar la lista de talleres.", "error");
+      }
+    }
+
+    document.getElementById("workshopForm").addEventListener("submit", async function (e) {
+      e.preventDefault();
+      clearMessage();
+
+      const body = {
+        id: document.getElementById("id").value,
+        name: document.getElementById("name").value,
+        description: document.getElementById("description").value,
+        category: document.getElementById("category").value,
+        location: document.getElementById("location").value,
+        startAt: toIsoDate(document.getElementById("startAt").value),
+        endAt: toIsoDate(document.getElementById("endAt").value),
+        capacity: Number(document.getElementById("capacity").value || 0)
+      };
+
+      try {
+        const response = await fetch(`${API_BASE}/workshops`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(body)
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          showMessage(data.message || "Error al crear el taller.", "error");
+          return;
+        }
+
+        showMessage("Taller creado correctamente.", "success");
+        document.getElementById("workshopForm").reset();
+        loadWorkshops();
+      } catch (error) {
+        showMessage("No se pudo conectar con la API.", "error");
+      }
+    });
+async function registerToWorkshop(workshopId) {
+  clearMessage();
+
+  const userId = prompt("Ingrese el ID del estudiante:");
+  if (!userId) return;
+
+  const userName = prompt("Ingrese el nombre del estudiante:");
+  if (!userName) return;
+
+  const userEmail = prompt("Ingrese el correo del estudiante:");
+  if (!userEmail) return;
+
+  try {
+    const response = await fetch(`${API_BASE}/workshops/${workshopId}/register`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        userId,
+        userName,
+        userEmail
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      showMessage(data.message || "Error al registrar estudiante.", "error");
+      return;
+    }
+
+    showMessage("Estudiante registrado correctamente.", "success");
+  } catch (error) {
+    showMessage("No se pudo registrar al estudiante.", "error");
+  }
+}
+    loadWorkshops();
+  </script>
+</body>
+</html>
